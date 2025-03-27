@@ -2,8 +2,12 @@ package main
 
 import (
 	"shortly-api-service/config"
+	"shortly-api-service/internal/database"
+	"shortly-api-service/internal/routes"
 	"shortly-api-service/internal/utils"
+	"time"
 
+	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 )
 
@@ -19,8 +23,22 @@ func main() {
 	// Initialize Gin server
 	server := gin.Default()
 
-    // api = server.Group("/api/v1")
+	// Database connection
+	database.ConnectDB()
 
+	// Middleware
+	server.Use(cors.New(cors.Config{
+		AllowOrigins:     []string{"*"},
+		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE"},
+		AllowHeaders:     []string{"Origin", "Content-Type", "Authorization"},
+		AllowCredentials: true,
+		MaxAge:           12 * time.Hour,
+	}))
+
+	api := server.Group("/api/v1")
+
+	// Routes
+	routes.HealthRouter(api)
 
 	utils.Log.Infof("🚀 Server running on port %s", config.AppConfig.Port)
 
