@@ -88,3 +88,15 @@ func Signup(ctx *gin.Context) {
 	})
 
 }
+
+func Signin(ctx *gin.Context) {
+
+}
+
+func Logout(ctx *gin.Context) {
+	ctx.SetCookie("token", "", -1, "/", "", true, true)
+	ctx.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": "Logout successfully",
+	})
+}
