@@ -1,0 +1,13 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: shortly-database
+    restart: always
+    env_file: ./services/shortly-api-service/.env
+    ports:
+      - "5432:5432"
+    volumes:
+      - shortly-database-data:/var/lib/postgresql/data
+
+volumes:
+  shortly-database-data:
