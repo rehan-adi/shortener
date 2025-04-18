@@ -14,7 +14,7 @@ import (
 
 var DB *gorm.DB
 
-func ConnectDB() {
+func ConnectDB() error {
 
 	dsn := fmt.Sprintf(
 		"host=%s user=%s password=%s dbname=%s port=%s sslmode=disable",
@@ -30,13 +30,17 @@ func ConnectDB() {
 	})
 
 	if err != nil {
-		utils.Log.Fatalf("❌ Failed to connect to the database: %v", err)
+		return fmt.Errorf("❌ Failed to open database (GORM connection setup): %w", err)
 	}
 
 	sqlDB, err := db.DB()
 
 	if err != nil {
-		utils.Log.Fatalf("❌ Failed to get SQL database instance: %v", err)
+		return fmt.Errorf("❌ Failed to get DB instance from GORM: %w", err)
+	}
+
+	if err := sqlDB.Ping(); err != nil {
+		return fmt.Errorf("❌ Failed to ping database: %w", err)
 	}
 
 	sqlDB.SetMaxOpenConns(25)
@@ -46,5 +50,7 @@ func ConnectDB() {
 	utils.Log.Info("✅ Database connected successfully")
 
 	DB = db
+
+	return nil
 
 }
