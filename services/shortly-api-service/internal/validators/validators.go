@@ -8,9 +8,18 @@ type SignupValidator struct {
 	Password string `json:"password" validate:"required,min=6"`
 }
 
+type SigninValidator struct {
+	Email    string `json:"email" validate:"required,email"`
+	Password string `json:"password" validate:"required,min=6"`
+}
+
 var validate = validator.New()
 
 func ValidateSignupData(input SignupValidator) map[string]string {
+	return validateStruct(input)
+}
+
+func ValidateSigninData(input SigninValidator) map[string]string {
 	return validateStruct(input)
 }
 
