@@ -1,6 +1,7 @@
 package main
 
 import (
+	"os"
 	"shortly-api-service/config"
 	"shortly-api-service/internal/database"
 	"shortly-api-service/internal/models"
@@ -11,9 +12,15 @@ func RunMigration() {
 
 	utils.InitLogger()
 
-	config.Init()
+	if err := config.Init(); err != nil {
+		utils.Log.Error("❌ Failed to load env variables", "error", err)
+		os.Exit(1)
+	}
 
-	database.ConnectDB()
+	if err := database.ConnectDB(); err != nil {
+		utils.Log.Error("❌ Failed to connect to the database", "error", err)
+		os.Exit(1)
+	}
 
 	err := database.DB.AutoMigrate(
 		&models.User{},
@@ -22,7 +29,8 @@ func RunMigration() {
 	)
 
 	if err != nil {
-		utils.Log.Fatalf("❌ Migration failed: %v", err)
+		utils.Log.Error("❌ Migration failed", "error", err)
+		os.Exit(1)
 	}
 
 	utils.Log.Info("✅ Database migration completed successfully")
