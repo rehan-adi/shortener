@@ -47,8 +47,9 @@ func main() {
 	api := server.Group("/api/v1")
 
 	// Routes
-	routes.HealthRouter(api)
 	routes.AuthRouter(api)
+	routes.HealthRouter(api)
+	routes.ProfileRouter(api)
 
 	utils.Log.Info("🚀 Server is running", "port", config.AppConfig.PORT)
 
