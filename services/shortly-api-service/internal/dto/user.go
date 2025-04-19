@@ -9,3 +9,7 @@ type UserDTO struct {
 	UrlsCount int       `json:"url_count"`
 	CreatedAt time.Time `json:"created"`
 }
+
+type UpdateUserDTO struct {
+	Username string `json:"username" binding:"required,min=3,max=30"`
+}
