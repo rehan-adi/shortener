@@ -47,6 +47,7 @@ func main() {
 	api := server.Group("/api/v1")
 
 	// Routes
+	routes.UrlRouter(api)
 	routes.AuthRouter(api)
 	routes.HealthRouter(api)
 	routes.ProfileRouter(api)
