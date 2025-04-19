@@ -9,11 +9,11 @@ import (
 
 func ProfileRouter(router *gin.RouterGroup) {
 
-	profile := router.Group("/profile")
+	profile := router.Group("/profile").Use(middlewares.AuthMiddleware())
 
 	{
-		profile.GET("/", middlewares.AuthMiddleware(), handlers.GetUserProfile)
-		profile.PATCH("/update", middlewares.AuthMiddleware(), handlers.UpdateUserProfile)
+		profile.GET("/", handlers.GetUserProfile)
+		profile.PATCH("/update", handlers.UpdateUserProfile)
 	}
 
 }
