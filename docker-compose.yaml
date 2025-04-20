@@ -9,5 +9,15 @@ services:
     volumes:
       - shortly-database-data:/var/lib/postgresql/data
 
+  redis:
+    image: redis:alpine
+    container_name: kgs-redis-queue
+    ports:
+      - "6379:6379"
+    restart: always
+    volumes:
+      - shortly-kgs-queue:/data
+
 volumes:
   shortly-database-data:
+  shortly-kgs-queue:
