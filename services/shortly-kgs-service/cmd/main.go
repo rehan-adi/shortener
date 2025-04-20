@@ -5,7 +5,7 @@ import (
 
 	"shortly-kgs-service/config"
 	"shortly-kgs-service/internal/database"
-	"shortly-kgs-service/internal/lib"
+	"shortly-kgs-service/internal/redis"
 	"shortly-kgs-service/internal/utils"
 )
 
@@ -27,12 +27,12 @@ func main() {
 
 	defer database.CloseMongoDB()
 
-	if err := lib.ConnectRedis(); err != nil {
+	if err := redis.ConnectRedis(); err != nil {
 		utils.Log.Error("❌ Failed to connect to Redis", "error", err)
 		os.Exit(1)
 	}
 
-	defer lib.RedisClient.Close()
+	defer redis.RedisClient.Close()
 
 	utils.Log.Info("Shortly KGS Service is running...")
 
