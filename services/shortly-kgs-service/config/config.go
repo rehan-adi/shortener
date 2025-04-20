@@ -9,6 +9,7 @@ import (
 
 type Config struct {
 	MONGO_URI string
+	REDIS_ADDR string
 }
 
 var AppConfig Config
@@ -23,6 +24,7 @@ func Init() error {
 
 	AppConfig = Config{
 		MONGO_URI: GetEnvOrPanic("MONGO_URI"),
+		REDIS_ADDR: GetEnvOrPanic("REDIS_ADDR"),
 	}
 
 	return nil
