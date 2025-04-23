@@ -1,0 +1,15 @@
+syntax = "proto3";
+
+package key;
+
+option go_package = "shortly-proto/gen;key";
+
+service KeyService {
+  rpc GetKey(Empty) returns (KeyResponse);
+}
+
+message Empty {}
+
+message KeyResponse {
+  string key = 1;
+}
