@@ -1,12 +1,15 @@
 package main
 
 import (
+	"net"
 	"os"
 
 	"shortly-kgs-service/config"
 	"shortly-kgs-service/internal/database"
 	"shortly-kgs-service/internal/redis"
 	"shortly-kgs-service/internal/utils"
+
+	"google.golang.org/grpc"
 )
 
 func main() {
@@ -33,6 +36,15 @@ func main() {
 	}
 
 	defer redis.RedisClient.Close()
+
+	_, err := net.Listen("tcp", ":2000")
+
+	if err != nil {
+		utils.Log.Error("❌ Failed to listen on port 50051", "error", err)
+		os.Exit(1)
+	}
+
+	grpcServer := grpc.NewServer()
 
 	utils.Log.Info("Shortly KGS Service is running...")
 
