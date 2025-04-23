@@ -7,6 +7,7 @@ require (
 	github.com/redis/go-redis/v9 v9.7.3
 	go.mongodb.org/mongo-driver v1.17.3
 	google.golang.org/grpc v1.72.0
+    shortly-proto v0.0.0
 )
 
 require (
@@ -27,3 +28,5 @@ require (
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20250218202821-56aae31c358a // indirect
 	google.golang.org/protobuf v1.36.6 // indirect
 )
+
+replace shortly-proto => ../../proto/shortly-proto
