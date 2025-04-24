@@ -15,6 +15,7 @@ type Config struct {
 	DB_NAME     string
 	DB_PASSWORD string
 	JWT_SECRET  string
+	REDIS_ADDR  string
 }
 
 var AppConfig Config
@@ -35,6 +36,7 @@ func Init() error {
 		DB_NAME:     GetEnvOrPanic("DB_NAME"),
 		DB_PASSWORD: GetEnvOrPanic("DB_PASSWORD"),
 		JWT_SECRET:  GetEnvOrPanic("JWT_SECRET"),
+		REDIS_ADDR:  GetEnvOrPanic("REDIS_ADDR"),
 	}
 
 	return nil
