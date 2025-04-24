@@ -7,9 +7,12 @@ import (
 	"shortly-kgs-service/config"
 	"shortly-kgs-service/internal/database"
 	"shortly-kgs-service/internal/redis"
+	"shortly-kgs-service/internal/service"
 	"shortly-kgs-service/internal/utils"
 
 	"google.golang.org/grpc"
+
+	"shortly-proto/gen/key"
 )
 
 func main() {
@@ -37,7 +40,7 @@ func main() {
 
 	defer redis.RedisClient.Close()
 
-	_, err := net.Listen("tcp", ":2000")
+	listener, err := net.Listen("tcp", ":2000")
 
 	if err != nil {
 		utils.Log.Error("❌ Failed to listen on port 50051", "error", err)
@@ -46,7 +49,14 @@ func main() {
 
 	grpcServer := grpc.NewServer()
 
+	key.RegisterKeyServiceServer(grpcServer, service.NewKeyServiceServer())
+
 	utils.Log.Info("Shortly KGS Service is running...")
+
+	if err := grpcServer.Serve(listener); err != nil {
+		utils.Log.Error("❌ Failed to serve gRPC server", "error", err)
+		os.Exit(1)
+	}
 
 	select {}
 }
