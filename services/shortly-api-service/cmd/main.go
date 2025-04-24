@@ -7,6 +7,7 @@ import (
 	"shortly-api-service/config"
 	"shortly-api-service/internal/clients"
 	"shortly-api-service/internal/database"
+	"shortly-api-service/internal/redis"
 	"shortly-api-service/internal/routes"
 	"shortly-api-service/internal/utils"
 
@@ -32,6 +33,13 @@ func main() {
 		utils.Log.Error("❌ Failed to connect to database", "error", err)
 		os.Exit(1)
 	}
+
+	if err := redis.ConnectRedis(); err != nil {
+		utils.Log.Error("❌ Failed to connect to Redis", "error", err)
+		os.Exit(1)
+	}
+
+	defer redis.RedisClient.Close()
 
 	// Initialize Gin server
 	server := gin.Default()

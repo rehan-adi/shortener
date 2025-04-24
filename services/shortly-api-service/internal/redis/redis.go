@@ -16,7 +16,7 @@ func ConnectRedis() error {
 	RedisClient = redis.NewClient(&redis.Options{
 		Addr:     config.AppConfig.REDIS_ADDR,
 		Password: "",
-		DB:       0,
+		DB:       1,
 	})
 
 	_, err := RedisClient.Ping(context.Background()).Result()
