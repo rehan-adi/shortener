@@ -5,21 +5,20 @@ import (
 	"time"
 
 	"shortly-kgs-service/config"
+	"shortly-kgs-service/internal/constants"
 	"shortly-kgs-service/internal/database"
 	"shortly-kgs-service/internal/models"
 	"shortly-kgs-service/internal/redis"
 	"shortly-kgs-service/internal/utils"
 )
 
-const RedisQueue = "shortly-kgs-redis-queue"
-const RedisCounter = "shortly-kgs-queue-counter"
 
 func GenerateKeys(count int) error {
 
 	for i := 0; i < count; i++ {
 
 		// Get next number using Redis atomic counter
-		id, err := redis.RedisClient.Incr(context.Background(), RedisCounter).Result()
+		id, err := redis.RedisClient.Incr(context.Background(), constants.RedisCounter).Result()
 
 		if err != nil {
 			return err
@@ -41,7 +40,7 @@ func GenerateKeys(count int) error {
 		}
 
 		// Push to Redis queue
-		err = redis.RedisClient.LPush(context.Background(), RedisQueue, key).Err()
+		err = redis.RedisClient.LPush(context.Background(), constants.RedisQueueName, key).Err()
 
 		if err != nil {
 			return err
