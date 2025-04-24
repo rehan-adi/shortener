@@ -40,10 +40,10 @@ func main() {
 
 	defer redis.RedisClient.Close()
 
-	listener, err := net.Listen("tcp", ":2000")
+	listener, err := net.Listen("tcp", config.AppConfig.PORT)
 
 	if err != nil {
-		utils.Log.Error("❌ Failed to listen on port 50051", "error", err)
+		utils.Log.Error("❌ Failed to listen on port", "port", config.AppConfig.PORT, "error", err)
 		os.Exit(1)
 	}
 
@@ -58,5 +58,4 @@ func main() {
 		os.Exit(1)
 	}
 
-	select {}
 }
