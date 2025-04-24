@@ -40,7 +40,7 @@ func main() {
 
 	defer redis.RedisClient.Close()
 
-	listener, err := net.Listen("tcp", config.AppConfig.PORT)
+	listener, err := net.Listen("tcp", ":"+config.AppConfig.PORT)
 
 	if err != nil {
 		utils.Log.Error("❌ Failed to listen on port", "port", config.AppConfig.PORT, "error", err)
