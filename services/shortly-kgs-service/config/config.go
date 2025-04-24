@@ -8,6 +8,7 @@ import (
 )
 
 type Config struct {
+	PORT          string
 	MONGO_URI     string
 	MONGO_DB_NAME string
 	REDIS_ADDR    string
@@ -24,6 +25,7 @@ func Init() error {
 	}
 
 	AppConfig = Config{
+		PORT:          GetEnvOrPanic("PORT"),
 		MONGO_URI:     GetEnvOrPanic("MONGO_URI"),
 		MONGO_DB_NAME: GetEnvOrPanic("MONGO_DB_NAME"),
 		REDIS_ADDR:    GetEnvOrPanic("REDIS_ADDR"),
