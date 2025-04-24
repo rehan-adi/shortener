@@ -8,14 +8,15 @@ import (
 )
 
 type Config struct {
-	PORT        string
-	DB_PORT     string
-	DB_HOST     string
-	DB_USER     string
-	DB_NAME     string
-	DB_PASSWORD string
-	JWT_SECRET  string
-	REDIS_ADDR  string
+	PORT             string
+	DB_PORT          string
+	DB_HOST          string
+	DB_USER          string
+	DB_NAME          string
+	DB_PASSWORD      string
+	JWT_SECRET       string
+	REDIS_ADDR       string
+	KGS_GRPC_ADDRESS string
 }
 
 var AppConfig Config
@@ -29,14 +30,15 @@ func Init() error {
 	}
 
 	AppConfig = Config{
-		PORT:        GetEnvOrPanic("PORT"),
-		DB_PORT:     GetEnvOrPanic("DB_PORT"),
-		DB_HOST:     GetEnvOrPanic("DB_HOST"),
-		DB_USER:     GetEnvOrPanic("DB_USER"),
-		DB_NAME:     GetEnvOrPanic("DB_NAME"),
-		DB_PASSWORD: GetEnvOrPanic("DB_PASSWORD"),
-		JWT_SECRET:  GetEnvOrPanic("JWT_SECRET"),
-		REDIS_ADDR:  GetEnvOrPanic("REDIS_ADDR"),
+		PORT:             GetEnvOrPanic("PORT"),
+		DB_PORT:          GetEnvOrPanic("DB_PORT"),
+		DB_HOST:          GetEnvOrPanic("DB_HOST"),
+		DB_USER:          GetEnvOrPanic("DB_USER"),
+		DB_NAME:          GetEnvOrPanic("DB_NAME"),
+		DB_PASSWORD:      GetEnvOrPanic("DB_PASSWORD"),
+		JWT_SECRET:       GetEnvOrPanic("JWT_SECRET"),
+		REDIS_ADDR:       GetEnvOrPanic("REDIS_ADDR"),
+		KGS_GRPC_ADDRESS: GetEnvOrPanic("KGS_GRPC_ADDRESS"),
 	}
 
 	return nil
