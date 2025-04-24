@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"shortly-api-service/config"
+	"shortly-api-service/internal/clients"
 	"shortly-api-service/internal/database"
 	"shortly-api-service/internal/routes"
 	"shortly-api-service/internal/utils"
@@ -26,14 +27,17 @@ func main() {
 
 	utils.Log.Info("✅ Environment variables loaded successfully")
 
-	// Initialize Gin server
-	server := gin.Default()
-
 	// Database connection
 	if err := database.ConnectDB(); err != nil {
 		utils.Log.Error("❌ Failed to connect to database", "error", err)
 		os.Exit(1)
 	}
+
+	// Initialize Gin server
+	server := gin.Default()
+
+	// Init gRPC KGS client
+	clients.InitKGSClient()
 
 	// Middleware
 	server.Use(cors.New(cors.Config{
