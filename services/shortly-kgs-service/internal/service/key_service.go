@@ -10,6 +10,8 @@ import (
 	"shortly-kgs-service/internal/redis"
 	"shortly-kgs-service/internal/utils"
 	"shortly-proto/gen/key"
+
+	"go.mongodb.org/mongo-driver/bson"
 )
 
 type KeyServiceServer struct {
@@ -45,8 +47,10 @@ func (s *KeyServiceServer) GetKey(ctx context.Context, req *key.Empty) (*key.Key
 
 	filter := models.ShortKey{Key: keyVal}
 
-	update := models.ShortKey{
-		Status: models.Used,
+	update := bson.M{
+		"$set": models.ShortKey{
+			Status: models.Used,
+		},
 	}
 
 	_, err = collection.UpdateOne(
