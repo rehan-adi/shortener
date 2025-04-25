@@ -3,6 +3,8 @@ package handlers
 import (
 	"context"
 	"net/http"
+	"strconv"
+	
 	"shortly-proto/gen/key"
 
 	"shortly-api-service/internal/clients"
@@ -27,7 +29,7 @@ func CreateUrl(ctx *gin.Context) {
 		return
 	}
 
-	id, ok := idInterface.(string)
+	id, ok := idInterface.(int)
 
 	if !ok {
 		utils.Log.Error("Failed to assert id type from context")
@@ -37,6 +39,8 @@ func CreateUrl(ctx *gin.Context) {
 		})
 		return
 	}
+
+	idStr := strconv.Itoa(id)
 
 	var data validators.CreateUrlValidator
 
@@ -100,7 +104,7 @@ func CreateUrl(ctx *gin.Context) {
 		OriginalURL: data.OriginalURL,
 		ShortKey:    data.ShortKey,
 		Title:       data.Title,
-		UserID:      &id,
+		UserID:      &idStr,
 	}
 
 	if err := database.DB.Create(&newUrl).Error; err != nil {
