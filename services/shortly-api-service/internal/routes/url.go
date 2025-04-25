@@ -12,10 +12,10 @@ func UrlRouter(router *gin.RouterGroup) {
 	url := router.Group("/url").Use(middlewares.AuthMiddleware())
 
 	{
-		url.GET("/", handlers.GetAllUrls)
-		url.POST("/shorten", handlers.CreateUrl)
-		url.GET("/:shortKey", handlers.GetUrlDetails)
-		url.PATCH("/:shortKey", handlers.UpdateUrl)
-		url.DELETE("/:shortKey", handlers.DeleteUrl)
+		url.GET("/", middlewares.AuthMiddleware(), handlers.GetAllUrls)
+		url.POST("/shorten", middlewares.AuthMiddleware(), handlers.CreateUrl)
+		url.GET("/:shortKey", middlewares.AuthMiddleware(), handlers.GetUrlDetails)
+		url.PATCH("/:shortKey", middlewares.AuthMiddleware(), handlers.UpdateUrl)
+		url.DELETE("/:shortKey", middlewares.AuthMiddleware(), handlers.DeleteUrl)
 	}
 }
