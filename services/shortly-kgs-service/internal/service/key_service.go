@@ -32,7 +32,7 @@ func (s *KeyServiceServer) GetKey(ctx context.Context, req *key.Empty) (*key.Key
 
 	if queueLen < constants.QueueLength {
 		utils.Log.Info("Queue length is low, generating more keys")
-		if err := kgs.GenerateKeys(1000); err != nil {
+		if err := kgs.GenerateKeys(2000); err != nil {
 			return nil, err
 		}
 	}

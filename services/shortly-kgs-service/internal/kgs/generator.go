@@ -12,19 +12,15 @@ import (
 	"shortly-kgs-service/internal/utils"
 )
 
-
 func GenerateKeys(count int) error {
 
 	for i := 0; i < count; i++ {
 
-		// Get next number using Redis atomic counter
-		id, err := redis.RedisClient.Incr(context.Background(), constants.RedisCounter).Result()
+		key, err := utils.GenerateRandomKey(6)
 
 		if err != nil {
 			return err
 		}
-
-		key := utils.Base62Encode(id)
 
 		// Store in MongoDB
 		collection := database.MongoClient.Database(config.AppConfig.MONGO_DB_NAME).Collection("shortkeys")
