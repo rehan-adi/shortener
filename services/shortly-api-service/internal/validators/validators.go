@@ -13,6 +13,12 @@ type SigninValidator struct {
 	Password string `json:"password" validate:"required,min=6"`
 }
 
+type CreateUrlValidator struct {
+	OriginalURL string `json:"original_url" validate:"required,url"`
+	ShortKey    string `json:"short_key" validate:"omitempty,alphanum,len=6"`
+	Title       string `json:"title" validate:"omitempty,max=255"`
+}
+
 var validate = validator.New()
 
 func ValidateSignupData(input SignupValidator) map[string]string {
@@ -20,6 +26,10 @@ func ValidateSignupData(input SignupValidator) map[string]string {
 }
 
 func ValidateSigninData(input SigninValidator) map[string]string {
+	return validateStruct(input)
+}
+
+func ValidateCreateUrlData(input CreateUrlValidator) map[string]string {
 	return validateStruct(input)
 }
 
