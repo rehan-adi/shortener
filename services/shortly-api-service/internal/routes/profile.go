@@ -12,7 +12,10 @@ func ProfileRouter(router *gin.RouterGroup) {
 	profile := router.Group("/profile").Use(middlewares.AuthMiddleware())
 
 	{
+		// Get the authenticated user's profile information
 		profile.GET("/", handlers.GetUserProfile)
+
+		// Update the authenticated user's profile information
 		profile.PATCH("/update", handlers.UpdateUserProfile)
 	}
 
