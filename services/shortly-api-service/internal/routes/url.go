@@ -13,6 +13,7 @@ func UrlRouter(router *gin.RouterGroup) {
 
 	{
 		url.GET("/", middlewares.AuthMiddleware(), handlers.GetAllUrls)
+		url.GET("/redirect/:shortKey", handlers.RedirectToOriginalUrl)
 		url.POST("/shorten", middlewares.AuthMiddleware(), handlers.CreateUrl)
 		url.GET("/:shortKey", middlewares.AuthMiddleware(), handlers.GetUrlDetails)
 		url.PATCH("/:shortKey", middlewares.AuthMiddleware(), handlers.UpdateUrl)

@@ -4,6 +4,7 @@ import (
 	"context"
 	"net/http"
 	"strconv"
+	"time"
 
 	"shortly-proto/gen/key"
 
@@ -14,6 +15,7 @@ import (
 	"shortly-api-service/internal/validators"
 
 	"github.com/gin-gonic/gin"
+	"gorm.io/gorm"
 )
 
 func CreateUrl(ctx *gin.Context) {
@@ -188,7 +190,7 @@ func GetAllUrls(ctx *gin.Context) {
 
 func GetUrlDetails(ctx *gin.Context) {
 
-	shortKey := ctx.Param("short_key")
+	shortKey := ctx.Param("shortKey")
 
 	if shortKey == "" {
 		utils.Log.Error("Short key is missing from path")
@@ -224,6 +226,52 @@ func GetUrlDetails(ctx *gin.Context) {
 	})
 }
 
+func RedirectToOriginalUrl(ctx *gin.Context) {
+
+	shortKey := ctx.Param("shortKey")
+
+	if shortKey == "" {
+		ctx.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"error":   "Short key is required",
+		})
+		return
+	}
+
+	var url models.Url
+
+	if err := database.DB.Where("short_key = ?", shortKey).First(&url).Error; err != nil {
+		ctx.JSON(http.StatusNotFound, gin.H{"error": "URL not found"})
+		return
+	}
+
+	go func() {
+		err := database.DB.Model(&url).UpdateColumn("clicks", gorm.Expr("clicks + ?", 1)).Error
+		if err != nil {
+			utils.Log.Error("Failed to update click count", "error", err)
+		}
+	}()
+
+	go func() {
+		analytics := models.Analytics{
+			UrlID:     strconv.FormatUint(uint64(url.ID), 10),
+			ClickedAt: time.Now(),
+			IPAddress: ctx.ClientIP(),
+			UserAgent: ctx.GetHeader("User-Agent"), // Capture user-agent
+			Referrer:  ctx.GetHeader("Referer"),    // Capture referer
+			Country:   "",                          // Optional: Implement GeoIP or similar to get country from IP
+			Device:    "",                          // Optional: Use user-agent parser to detect device
+			Browser:   "",                          // Optional: Use user-agent parser to detect browser
+			OS:        "",                          // Optional: Use user-agent parser to detect OS
+		}
+
+		if err := database.DB.Create(&analytics).Error; err != nil {
+			utils.Log.Error("Failed to store analytics", "error", err)
+		}
+	}()
+
+	ctx.Redirect(http.StatusFound, url.OriginalURL)
+}
 
 func UpdateUrl(ctx *gin.Context) {
 
