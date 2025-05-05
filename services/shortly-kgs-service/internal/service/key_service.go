@@ -45,11 +45,11 @@ func (s *KeyServiceServer) GetKey(ctx context.Context, req *key.Empty) (*key.Key
 
 	collection := database.MongoClient.Database(config.AppConfig.MONGO_DB_NAME).Collection("shortkeys")
 
-	filter := models.ShortKey{Key: keyVal}
+	filter := bson.M{"key": keyVal}
 
 	update := bson.M{
-		"$set": models.ShortKey{
-			Status: models.Used,
+		"$set": bson.M{
+			"status": models.Used,
 		},
 	}
 
@@ -58,9 +58,12 @@ func (s *KeyServiceServer) GetKey(ctx context.Context, req *key.Empty) (*key.Key
 		filter,
 		update,
 	)
+
 	if err != nil {
 		return nil, err
 	}
+
+	utils.Log.Info("Key status update in database")
 
 	return &key.KeyResponse{Key: keyVal}, nil
 }
