@@ -19,7 +19,7 @@ type SigninValidator struct {
 
 type CreateUrlValidator struct {
 	OriginalURL string `json:"original_url" validate:"required,url"`
-	ShortKey    string `json:"short_key" validate:"omitempty,min=2,max=20,shortkeychars"`
+	ShortKey    string `json:"short_key" validate:"omitempty,min=2,max=50,shortkeychars"`
 	Title       string `json:"title" validate:"omitempty,max=255"`
 }
 
@@ -27,6 +27,11 @@ var (
 	validate      = validator.New()
 	validShortKey = regexp.MustCompile(`^[a-zA-Z0-9_-]+$`)
 )
+
+type UpdateUrlValidator struct {
+	ShortKey string `json:"short_key" validate:"omitempty,min=2,max=50,shortkeychars"`
+	Title    string `json:"title" validate:"omitempty,max=255"`
+}
 
 func init() {
 	_ = validate.RegisterValidation("shortkeychars", func(fl validator.FieldLevel) bool {
@@ -44,6 +49,10 @@ func ValidateSigninData(input SigninValidator) map[string]string {
 }
 
 func ValidateCreateUrlData(input CreateUrlValidator) map[string]string {
+	return validateStruct(input)
+}
+
+func ValidateUpdateUrlData(input UpdateUrlValidator) map[string]string {
 	return validateStruct(input)
 }
 

@@ -231,6 +231,7 @@ func RedirectToOriginalUrl(ctx *gin.Context) {
 	shortKey := ctx.Param("shortKey")
 
 	if shortKey == "" {
+		utils.Log.Error("Short key is missing from path")
 		ctx.JSON(http.StatusBadRequest, gin.H{
 			"success": false,
 			"error":   "Short key is required",
@@ -275,6 +276,86 @@ func RedirectToOriginalUrl(ctx *gin.Context) {
 
 func UpdateUrl(ctx *gin.Context) {
 
+	shortKey := ctx.Param("shortKey")
+
+	if shortKey == "" {
+		utils.Log.Error("Short key is missing from path")
+		ctx.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"error":   "Short key is required",
+		})
+		return
+	}
+
+	var url models.Url
+
+	if err := database.DB.Where("short_key = ?", shortKey).First(&url).Error; err != nil {
+		utils.Log.Error("URL not found", "error", err)
+		ctx.JSON(http.StatusNotFound, gin.H{
+			"success": false,
+			"error":   "URL not found",
+		})
+		return
+	}
+
+	var updateData validators.UpdateUrlValidator
+
+	if err := ctx.ShouldBindJSON(&updateData); err != nil {
+		utils.Log.Error("Invalid input data", "error", err)
+		ctx.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"error":   "Invalid input data",
+		})
+		return
+	}
+	validationErrors := validators.ValidateUpdateUrlData(updateData)
+
+	if len(validationErrors) > 0 {
+		utils.Log.Error("Validation errors", "errors", validationErrors)
+		ctx.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"error":   validationErrors,
+		})
+		return
+	}
+
+	if updateData.ShortKey != "" && updateData.ShortKey != shortKey {
+		var existing models.Url
+		if err := database.DB.Where("short_key = ?", updateData.ShortKey).First(&existing).Error; err == nil {
+			utils.Log.Error("Short key already exists", "short_key", updateData.ShortKey)
+			ctx.JSON(http.StatusConflict, gin.H{
+				"success": false,
+				"error":   "This short key already exists.",
+			})
+			return
+		}
+	}
+
+	if updateData.ShortKey != "" {
+		url.ShortKey = updateData.ShortKey
+	}
+	if updateData.Title != "" {
+		url.Title = updateData.Title
+	}
+
+	if err := database.DB.Save(&url).Error; err != nil {
+		utils.Log.Error("Failed to update URL", "error", err)
+		ctx.JSON(http.StatusInternalServerError, gin.H{
+			"success": false,
+			"error":   "Failed to update URL",
+		})
+		return
+	}
+
+	ctx.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"data": gin.H{
+			"original_url": url.OriginalURL,
+			"short_url":    url.ShortKey,
+			"title":        url.Title,
+		},
+		"message": "URL updated successfully",
+	})
 }
 
 func DeleteUrl(ctx *gin.Context) {
