@@ -188,7 +188,42 @@ func GetAllUrls(ctx *gin.Context) {
 
 func GetUrlDetails(ctx *gin.Context) {
 
+	shortKey := ctx.Param("short_key")
+
+	if shortKey == "" {
+		utils.Log.Error("Short key is missing from path")
+		ctx.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"error":   "Short key is required",
+		})
+		return
+	}
+
+	var url models.Url
+
+	if err := database.DB.Where("short_key = ?", shortKey).First(&url).Error; err != nil {
+		utils.Log.Error("Failed to find URL", "error", err)
+		ctx.JSON(http.StatusNotFound, gin.H{
+			"success": false,
+			"error":   "URL not found",
+		})
+		return
+	}
+
+	ctx.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"data": gin.H{
+			"original_url": url.OriginalURL,
+			"short_url":    url.ShortKey,
+			"title":        url.Title,
+			"clicks":       url.Clicks,
+			"created_at":   url.CreatedAt,
+			"expires_at":   url.ExpiresAt,
+		},
+		"message": "URL details retrieved successfully",
+	})
 }
+
 
 func UpdateUrl(ctx *gin.Context) {
 
