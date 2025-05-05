@@ -360,4 +360,39 @@ func UpdateUrl(ctx *gin.Context) {
 
 func DeleteUrl(ctx *gin.Context) {
 
+	shortKey := ctx.Param("shortKey")
+
+	if shortKey == "" {
+		utils.Log.Error("Short key is missing from path")
+		ctx.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"error":   "Short key is required",
+		})
+		return
+	}
+
+	var url models.Url
+
+	if err := database.DB.Where("short_key = ?", shortKey).First(&url).Error; err != nil {
+		utils.Log.Error("URL not found", "error", err)
+		ctx.JSON(http.StatusNotFound, gin.H{
+			"success": false,
+			"error":   "URL not found",
+		})
+		return
+	}
+
+	if err := database.DB.Delete(&url).Error; err != nil {
+		utils.Log.Error("Failed to delete URL", "error", err)
+		ctx.JSON(http.StatusInternalServerError, gin.H{
+			"success": false,
+			"error":   "Failed to delete URL",
+		})
+		return
+	}
+
+	ctx.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": "URL deleted successfully",
+	})
 }
