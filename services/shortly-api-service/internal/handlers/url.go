@@ -4,7 +4,7 @@ import (
 	"context"
 	"net/http"
 	"strconv"
-	
+
 	"shortly-proto/gen/key"
 
 	"shortly-api-service/internal/clients"
@@ -130,6 +130,60 @@ func CreateUrl(ctx *gin.Context) {
 
 func GetAllUrls(ctx *gin.Context) {
 
+	idInterface, exists := ctx.Get("id")
+
+	if !exists {
+		utils.Log.Error("User ID not found in context")
+		ctx.JSON(http.StatusUnauthorized, gin.H{
+			"success": false,
+			"error":   "Unauthorized: User ID missing",
+		})
+		return
+	}
+
+	id, ok := idInterface.(int)
+
+	if !ok {
+		utils.Log.Error("Failed to assert user ID type")
+		ctx.JSON(http.StatusInternalServerError, gin.H{
+			"success": false,
+			"error":   "Internal server error",
+		})
+		return
+	}
+
+	userID := strconv.Itoa(id)
+
+	var urls []models.Url
+
+	if err := database.DB.
+		Where("user_id = ?", userID).
+		Find(&urls).Error; err != nil {
+		utils.Log.Error("Failed to fetch URLs", "error", err)
+		ctx.JSON(http.StatusInternalServerError, gin.H{
+			"success": false,
+			"error":   "Failed to retrieve URLs",
+		})
+		return
+	}
+
+	response := make([]gin.H, 0, len(urls))
+
+	for _, url := range urls {
+		response = append(response, gin.H{
+			"original_url": url.OriginalURL,
+			"short_url":    url.ShortKey,
+			"title":        url.Title,
+			"clicks":       url.Clicks,
+			"created_at":   url.CreatedAt,
+		})
+	}
+
+	ctx.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"data":    response,
+		"message": "URLs retrieved successfully",
+	})
 }
 
 func GetUrlDetails(ctx *gin.Context) {
