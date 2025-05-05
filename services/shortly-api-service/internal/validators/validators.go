@@ -1,6 +1,10 @@
 package validators
 
-import "github.com/go-playground/validator/v10"
+import (
+	"regexp"
+
+	"github.com/go-playground/validator/v10"
+)
 
 type SignupValidator struct {
 	Email    string `json:"email" validate:"required,email"`
@@ -15,11 +19,21 @@ type SigninValidator struct {
 
 type CreateUrlValidator struct {
 	OriginalURL string `json:"original_url" validate:"required,url"`
-	ShortKey    string `json:"short_key" validate:"omitempty,alphanum,len=6"`
+	ShortKey    string `json:"short_key" validate:"omitempty,min=2,max=20,shortkeychars"`
 	Title       string `json:"title" validate:"omitempty,max=255"`
 }
 
-var validate = validator.New()
+var (
+	validate      = validator.New()
+	validShortKey = regexp.MustCompile(`^[a-zA-Z0-9_-]+$`)
+)
+
+func init() {
+	_ = validate.RegisterValidation("shortkeychars", func(fl validator.FieldLevel) bool {
+		key := fl.Field().String()
+		return validShortKey.MatchString(key)
+	})
+}
 
 func ValidateSignupData(input SignupValidator) map[string]string {
 	return validateStruct(input)
