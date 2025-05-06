@@ -13,10 +13,10 @@ func ProfileRouter(router *gin.RouterGroup) {
 
 	{
 		// Get the authenticated user's profile information
-		profile.GET("/", handlers.GetUserProfile)
+		profile.GET("/", middlewares.RateLimiter("20-M"), handlers.GetUserProfile)
 
 		// Update the authenticated user's profile information
-		profile.PATCH("/update", handlers.UpdateUserProfile)
+		profile.PATCH("/update", middlewares.RateLimiter("5-M"), handlers.UpdateUserProfile)
 	}
 
 }
