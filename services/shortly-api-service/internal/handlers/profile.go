@@ -1,7 +1,6 @@
 package handlers
 
 import (
-	"context"
 	"encoding/json"
 	"net/http"
 	"strings"
@@ -42,7 +41,7 @@ func GetUserProfile(ctx *gin.Context) {
 
 	cacheKey := "user:profile:" + email
 
-	cached, err := redis.RedisClient.Get(context.Background(), cacheKey).Result()
+	cached, err := redis.RedisClient.Get(ctx.Request.Context(), cacheKey).Result()
 
 	if err == nil && cached != "" {
 		var cachedDTO dto.UserDTO
@@ -59,7 +58,7 @@ func GetUserProfile(ctx *gin.Context) {
 
 	var user models.User
 
-	if err := database.DB.Preload("Urls").Where("email = ?", email).First(&user).Error; err != nil {
+	if err := database.DB.Where("email = ?", email).First(&user).Error; err != nil {
 		utils.Log.Error("No user found", "error", err)
 		ctx.JSON(http.StatusNotFound, gin.H{
 			"success": false,
@@ -72,24 +71,32 @@ func GetUserProfile(ctx *gin.Context) {
 		ID:        user.ID,
 		Email:     user.Email,
 		Username:  user.Username,
-		UrlsCount: len(user.Urls),
 		CreatedAt: user.CreatedAt,
 	}
 
-	jsonBytes, _ := json.Marshal(userDTO)
+	jsonBytes, err := json.Marshal(userDTO)
+
+	if err != nil {
+		utils.Log.Error("Failed to marshal user DTO", "error", err)
+		ctx.JSON(http.StatusInternalServerError, gin.H{
+			"success": false,
+			"error":   "Internal server error",
+		})
+		return
+	}
 
 	if err := redis.RedisClient.Set(
-		context.Background(),
+		ctx.Request.Context(),
 		cacheKey,
 		jsonBytes,
-		24*time.Hour).Err(); err != nil {
+		30*time.Minute).Err(); err != nil {
 		utils.Log.Error("Failed to cache user profile", "error", err)
 	}
 
 	ctx.JSON(http.StatusOK, gin.H{
 		"success": true,
 		"data":    userDTO,
-		"message": "Profile retrive successfully",
+		"message": "Profile retrieved successfully",
 	})
 
 }
@@ -142,6 +149,14 @@ func UpdateUserProfile(ctx *gin.Context) {
 
 	user.Username = strings.TrimSpace(data.Username)
 
+	if user.Username == "" {
+		ctx.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"error":   "Username cannot be empty",
+		})
+		return
+	}
+
 	if err := database.DB.Save(&user).Error; err != nil {
 		utils.Log.Error("Failed to update user profile", "error", err)
 		ctx.JSON(http.StatusInternalServerError, gin.H{
@@ -151,8 +166,37 @@ func UpdateUserProfile(ctx *gin.Context) {
 		return
 	}
 
+	cacheKey := "user:profile:" + email
+
+	userDTO := dto.UserDTO{
+		ID:        user.ID,
+		Email:     user.Email,
+		Username:  user.Username,
+		CreatedAt: user.CreatedAt,
+	}
+
+	jsonBytes, err := json.Marshal(userDTO)
+
+	if err != nil {
+		utils.Log.Error("Failed to marshal user DTO", "error", err)
+		ctx.JSON(http.StatusInternalServerError, gin.H{
+			"success": false,
+			"error":   "Internal server error",
+		})
+		return
+	}
+
+	if err := redis.RedisClient.Set(
+		ctx.Request.Context(),
+		cacheKey,
+		jsonBytes,
+		30*time.Minute).Err(); err != nil {
+		utils.Log.Error("Failed to update Redis cache", "error", err)
+	}
+
 	ctx.JSON(http.StatusOK, gin.H{
 		"success": true,
+		"data":    userDTO,
 		"message": "Profile updated successfully",
 	})
 
