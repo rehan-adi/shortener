@@ -1,12 +1,16 @@
 package handlers
 
 import (
+	"context"
+	"encoding/json"
 	"net/http"
 	"strings"
+	"time"
 
 	"shortly-api-service/internal/database"
 	"shortly-api-service/internal/dto"
 	"shortly-api-service/internal/models"
+	"shortly-api-service/internal/redis"
 	"shortly-api-service/internal/utils"
 
 	"github.com/gin-gonic/gin"
@@ -36,6 +40,23 @@ func GetUserProfile(ctx *gin.Context) {
 		return
 	}
 
+	cacheKey := "user:profile:" + email
+
+	cached, err := redis.RedisClient.Get(context.Background(), cacheKey).Result()
+
+	if err == nil && cached != "" {
+		var cachedDTO dto.UserDTO
+		if err := json.Unmarshal([]byte(cached), &cachedDTO); err == nil {
+			utils.Log.Info("User profile served from Redis")
+			ctx.JSON(http.StatusOK, gin.H{
+				"success": true,
+				"data":    cachedDTO,
+				"message": "Profile retrieved successfully",
+			})
+			return
+		}
+	}
+
 	var user models.User
 
 	if err := database.DB.Preload("Urls").Where("email = ?", email).First(&user).Error; err != nil {
@@ -47,7 +68,7 @@ func GetUserProfile(ctx *gin.Context) {
 		return
 	}
 
-	UserDTO := dto.UserDTO{
+	userDTO := dto.UserDTO{
 		ID:        user.ID,
 		Email:     user.Email,
 		Username:  user.Username,
@@ -55,9 +76,19 @@ func GetUserProfile(ctx *gin.Context) {
 		CreatedAt: user.CreatedAt,
 	}
 
+	jsonBytes, _ := json.Marshal(userDTO)
+
+	if err := redis.RedisClient.Set(
+		context.Background(),
+		cacheKey,
+		jsonBytes,
+		24*time.Hour).Err(); err != nil {
+		utils.Log.Error("Failed to cache user profile", "error", err)
+	}
+
 	ctx.JSON(http.StatusOK, gin.H{
 		"success": true,
-		"data":    UserDTO,
+		"data":    userDTO,
 		"message": "Profile retrive successfully",
 	})
 
