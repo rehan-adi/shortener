@@ -32,6 +32,7 @@ func Signup(ctx *gin.Context) {
 	validationErrors := validators.ValidateSignupData(data)
 
 	if len(validationErrors) > 0 {
+		utils.Log.Error("Validation failed on signup", "error", validationErrors)
 		ctx.JSON(http.StatusBadRequest, gin.H{
 			"success":          false,
 			"validation_error": validationErrors,
@@ -42,6 +43,7 @@ func Signup(ctx *gin.Context) {
 	var existingUser models.User
 
 	if err := database.DB.Where("email = ?", data.Email).First(&existingUser).Error; err == nil {
+		utils.Log.Warn("Signup attempt with existing email", "email", data.Email)
 		ctx.JSON(http.StatusConflict, gin.H{
 			"success": false,
 			"message": "User already exists",
@@ -82,8 +84,16 @@ func Signup(ctx *gin.Context) {
 		return
 	}
 
+	utils.Log.Info("User signed up successfully", "user_id", user.ID, "email", user.Email)
+
 	ctx.JSON(http.StatusCreated, gin.H{
 		"success": true,
+		"data": gin.H{
+			"id":         user.ID,
+			"email":      user.Email,
+			"username":   user.Username,
+			"created_at": user.CreatedAt,
+		},
 		"message": "User registered successfully",
 	})
 
@@ -107,6 +117,7 @@ func Signin(ctx *gin.Context) {
 	validationErrors := validators.ValidateSigninData(data)
 
 	if len(validationErrors) > 0 {
+		utils.Log.Error("Validation failed on signin", "error", validationErrors)
 		ctx.JSON(http.StatusBadRequest, gin.H{
 			"success":          false,
 			"validation_error": validationErrors,
@@ -117,6 +128,7 @@ func Signin(ctx *gin.Context) {
 	var user models.User
 
 	if err := database.DB.Where("email = ?", data.Email).First(&user).Error; err != nil {
+		utils.Log.Warn("Signin attempt with unregistered email", "email", data.Email)
 		ctx.JSON(http.StatusNotFound, gin.H{
 			"success": false,
 			"error":   "User not found",
@@ -148,9 +160,21 @@ func Signin(ctx *gin.Context) {
 
 	ctx.SetCookie("token", token, 86400, "/", "", true, true)
 
+	utils.Log.Info("User login attempt",
+		"email", data.Email,
+		"ip", ctx.ClientIP(),
+		"user_agent", ctx.Request.UserAgent(),
+	)
+
 	ctx.JSON(http.StatusOK, gin.H{
 		"success": true,
-		"data":    token,
+		"token":   token,
+		"data": gin.H{
+			"id":         user.ID,
+			"email":      user.Email,
+			"username":   user.Username,
+			"created_at": user.CreatedAt,
+		},
 		"message": "Login successful",
 	})
 
