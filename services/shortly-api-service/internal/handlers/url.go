@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"context"
+	"encoding/json"
 	"net/http"
 	"strconv"
 	"time"
@@ -11,6 +12,7 @@ import (
 	"shortly-api-service/internal/clients"
 	"shortly-api-service/internal/database"
 	"shortly-api-service/internal/models"
+	"shortly-api-service/internal/redis"
 	"shortly-api-service/internal/utils"
 	"shortly-api-service/internal/validators"
 
@@ -116,6 +118,27 @@ func CreateUrl(ctx *gin.Context) {
 			"error":   "Failed to create URL",
 		})
 		return
+	}
+
+	cacheKey := "url:" + data.ShortKey
+
+	jsonByte, err := json.Marshal(newUrl)
+
+	if err != nil {
+		utils.Log.Error("Failed to marshal url data")
+		ctx.JSON(http.StatusInternalServerError, gin.H{
+			"success": false,
+			"error":   "Internal server error",
+		})
+	}
+
+	if err := redis.RedisClient.Set(
+		ctx.Request.Context(),
+		cacheKey,
+		jsonByte,
+		24*time.Hour,
+	).Err(); err != nil {
+		utils.Log.Error("Failed to cache generated url data", "error", err)
 	}
 
 	ctx.JSON(http.StatusOK, gin.H{
@@ -239,39 +262,73 @@ func RedirectToOriginalUrl(ctx *gin.Context) {
 		return
 	}
 
-	var url models.Url
+	cacheKey := "url:" + shortKey
 
+	// Check cache first
+	data, err := redis.RedisClient.Get(ctx.Request.Context(), cacheKey).Result()
+	if err == nil && data != "" {
+		var cachedDTO models.Url
+		if err := json.Unmarshal([]byte(data), &cachedDTO); err == nil {
+			utils.Log.Info("URL served from Redis cache")
+
+			// Fire and forget: increment clicks & log analytics
+			go incrementClickCount(cachedDTO.ID)
+			go storeAnalytics(ctx, cachedDTO.ID)
+
+			ctx.Redirect(http.StatusFound, cachedDTO.OriginalURL)
+			return
+		}
+	}
+
+	// Fallback to DB
+	var url models.Url
 	if err := database.DB.Where("short_key = ?", shortKey).First(&url).Error; err != nil {
-		ctx.JSON(http.StatusNotFound, gin.H{"error": "URL not found"})
+		utils.Log.Error("Short Key not found in database", "error", err)
+		ctx.JSON(http.StatusNotFound, gin.H{
+			"success": false,
+			"error":   "URL not found",
+		})
 		return
 	}
 
+	// Cache result
 	go func() {
-		err := database.DB.Model(&url).UpdateColumn("clicks", gorm.Expr("clicks + ?", 1)).Error
-		if err != nil {
-			utils.Log.Error("Failed to update click count", "error", err)
+		jsonData, err := json.Marshal(url)
+		if err == nil {
+			err = redis.RedisClient.Set(ctx.Request.Context(), cacheKey, jsonData, 24*time.Hour).Err()
+			if err != nil {
+				utils.Log.Error("Failed to cache URL in Redis", "error", err)
+			}
 		}
 	}()
 
-	go func() {
-		analytics := models.Analytics{
-			UrlID:     strconv.FormatUint(uint64(url.ID), 10),
-			ClickedAt: time.Now(),
-			IPAddress: ctx.ClientIP(),
-			UserAgent: ctx.GetHeader("User-Agent"), // Capture user-agent
-			Referrer:  ctx.GetHeader("Referer"),    // Capture referer
-			Country:   "",                          // Optional: Implement GeoIP or similar to get country from IP
-			Device:    "",                          // Optional: Use user-agent parser to detect device
-			Browser:   "",                          // Optional: Use user-agent parser to detect browser
-			OS:        "",                          // Optional: Use user-agent parser to detect OS
-		}
-
-		if err := database.DB.Create(&analytics).Error; err != nil {
-			utils.Log.Error("Failed to store analytics", "error", err)
-		}
-	}()
+	// Async operations
+	go incrementClickCount(url.ID)
+	go storeAnalytics(ctx, url.ID)
 
 	ctx.Redirect(http.StatusFound, url.OriginalURL)
+}
+
+func incrementClickCount(id uint) {
+	err := database.DB.Model(&models.Url{}).Where("id = ?", id).
+		UpdateColumn("clicks", gorm.Expr("clicks + ?", 1)).Error
+	if err != nil {
+		utils.Log.Error("Failed to update click count", "error", err)
+	}
+}
+
+func storeAnalytics(ctx *gin.Context, urlID uint) {
+	analytics := models.Analytics{
+		UrlID:     strconv.FormatUint(uint64(urlID), 10),
+		ClickedAt: time.Now(),
+		IPAddress: ctx.ClientIP(),
+		UserAgent: ctx.GetHeader("User-Agent"),
+		Referrer:  ctx.GetHeader("Referer"),
+	}
+
+	if err := database.DB.Create(&analytics).Error; err != nil {
+		utils.Log.Error("Failed to store analytics", "error", err)
+	}
 }
 
 func UpdateUrl(ctx *gin.Context) {
