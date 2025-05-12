@@ -11,6 +11,8 @@ import (
 
 	"shortly-api-service/internal/clients"
 	"shortly-api-service/internal/database"
+	"shortly-api-service/internal/dto"
+	"shortly-api-service/internal/lib"
 	"shortly-api-service/internal/models"
 	"shortly-api-service/internal/redis"
 	"shortly-api-service/internal/utils"
@@ -50,7 +52,7 @@ func CreateUrl(ctx *gin.Context) {
 
 	if err := ctx.ShouldBindJSON(&data); err != nil {
 		utils.Log.Error("Failed to bind request body", "error", err)
-		ctx.JSON(http.StatusInternalServerError, gin.H{
+		ctx.JSON(http.StatusBadRequest, gin.H{
 			"success": false,
 			"error":   "Invalid request format",
 		})
@@ -69,8 +71,8 @@ func CreateUrl(ctx *gin.Context) {
 
 	var existing models.Url
 
-	if err := database.DB.Where("original_url = ?", data.OriginalURL).First(&existing).Error; err == nil {
-		utils.Log.Error("Url is already shortened", "error", err)
+	if err := database.DB.Where("original_url = ?  AND user_id = ? ", data.OriginalURL, idStr).First(&existing).Error; err == nil {
+		utils.Log.Error("Url is already shortened")
 		ctx.JSON(http.StatusConflict, gin.H{
 			"success": false,
 			"error":   "This URL has already been shortened.",
@@ -126,27 +128,29 @@ func CreateUrl(ctx *gin.Context) {
 
 	if err != nil {
 		utils.Log.Error("Failed to marshal url data")
-		ctx.JSON(http.StatusInternalServerError, gin.H{
-			"success": false,
-			"error":   "Internal server error",
-		})
 	}
 
-	if err := redis.RedisClient.Set(
-		ctx.Request.Context(),
-		cacheKey,
-		jsonByte,
-		24*time.Hour,
-	).Err(); err != nil {
-		utils.Log.Error("Failed to cache generated url data", "error", err)
-	}
+	go func() {
+		err := redis.RedisClient.Set(
+			ctx.Request.Context(),
+			cacheKey,
+			jsonByte,
+			24*time.Hour).Err()
+
+		if err != nil {
+			utils.Log.Error("Failed to cache generated url data", "error", err)
+		}
+	}()
+
+	utils.Log.Info("URL successfully created", "shortKey", data.ShortKey, "userID", idStr)
 
 	ctx.JSON(http.StatusOK, gin.H{
 		"success": true,
-		"data": gin.H{
-			"short_url": newUrl.ShortKey,
-			"original":  newUrl.OriginalURL,
-			"title":     newUrl.Title,
+		"data": dto.CreateUrlResponseDTO{
+			ID:          newUrl.ID,
+			OriginalURL: newUrl.OriginalURL,
+			ShortKey:    newUrl.ShortKey,
+			Title:       newUrl.Title,
 		},
 		"message": "URL successfully created",
 	})
@@ -192,15 +196,16 @@ func GetAllUrls(ctx *gin.Context) {
 		return
 	}
 
-	response := make([]gin.H, 0, len(urls))
+	response := make([]dto.GetUrlResponseDTO, 0, len(urls))
 
 	for _, url := range urls {
-		response = append(response, gin.H{
-			"original_url": url.OriginalURL,
-			"short_url":    url.ShortKey,
-			"title":        url.Title,
-			"clicks":       url.Clicks,
-			"created_at":   url.CreatedAt,
+		response = append(response, dto.GetUrlResponseDTO{
+			ID:          url.ID,
+			OriginalURL: url.OriginalURL,
+			ShortKey:    url.ShortKey,
+			Title:       url.Title,
+			Clicks:      url.Clicks,
+			CreatedAt:   url.CreatedAt,
 		})
 	}
 
@@ -237,13 +242,13 @@ func GetUrlDetails(ctx *gin.Context) {
 
 	ctx.JSON(http.StatusOK, gin.H{
 		"success": true,
-		"data": gin.H{
-			"original_url": url.OriginalURL,
-			"short_url":    url.ShortKey,
-			"title":        url.Title,
-			"clicks":       url.Clicks,
-			"created_at":   url.CreatedAt,
-			"expires_at":   url.ExpiresAt,
+		"data": dto.GetUrlResponseDTO{
+			ID:          url.ID,
+			OriginalURL: url.OriginalURL,
+			ShortKey:    url.ShortKey,
+			Title:       url.Title,
+			Clicks:      url.Clicks,
+			CreatedAt:   url.CreatedAt,
 		},
 		"message": "URL details retrieved successfully",
 	})
@@ -264,14 +269,13 @@ func RedirectToOriginalUrl(ctx *gin.Context) {
 
 	cacheKey := "url:" + shortKey
 
-	// Check cache first
 	data, err := redis.RedisClient.Get(ctx.Request.Context(), cacheKey).Result()
+
 	if err == nil && data != "" {
 		var cachedDTO models.Url
 		if err := json.Unmarshal([]byte(data), &cachedDTO); err == nil {
 			utils.Log.Info("URL served from Redis cache")
 
-			// Fire and forget: increment clicks & log analytics
 			go incrementClickCount(cachedDTO.ID)
 			go storeAnalytics(ctx, cachedDTO.ID)
 
@@ -280,8 +284,8 @@ func RedirectToOriginalUrl(ctx *gin.Context) {
 		}
 	}
 
-	// Fallback to DB
 	var url models.Url
+
 	if err := database.DB.Where("short_key = ?", shortKey).First(&url).Error; err != nil {
 		utils.Log.Error("Short Key not found in database", "error", err)
 		ctx.JSON(http.StatusNotFound, gin.H{
@@ -291,7 +295,6 @@ func RedirectToOriginalUrl(ctx *gin.Context) {
 		return
 	}
 
-	// Cache result
 	go func() {
 		jsonData, err := json.Marshal(url)
 		if err == nil {
@@ -309,8 +312,8 @@ func RedirectToOriginalUrl(ctx *gin.Context) {
 	ctx.Redirect(http.StatusFound, url.OriginalURL)
 }
 
-func incrementClickCount(id uint) {
-	err := database.DB.Model(&models.Url{}).Where("id = ?", id).
+func incrementClickCount(urlId uint) {
+	err := database.DB.Model(&models.Url{}).Where("id = ?", urlId).
 		UpdateColumn("clicks", gorm.Expr("clicks + ?", 1)).Error
 	if err != nil {
 		utils.Log.Error("Failed to update click count", "error", err)
@@ -318,12 +321,22 @@ func incrementClickCount(id uint) {
 }
 
 func storeAnalytics(ctx *gin.Context, urlID uint) {
+	ip := ctx.ClientIP()
+	userAgent := ctx.GetHeader("User-Agent")
+
+	country := lib.GetCountryFromIP(ip)
+	device, browser, os := lib.ParseUserAgent(userAgent)
+
 	analytics := models.Analytics{
 		UrlID:     strconv.FormatUint(uint64(urlID), 10),
 		ClickedAt: time.Now(),
-		IPAddress: ctx.ClientIP(),
-		UserAgent: ctx.GetHeader("User-Agent"),
+		IPAddress: ip,
+		UserAgent: userAgent,
 		Referrer:  ctx.GetHeader("Referer"),
+		Country:   country,
+		Device:    device,
+		Browser:   browser,
+		OS:        os,
 	}
 
 	if err := database.DB.Create(&analytics).Error; err != nil {
