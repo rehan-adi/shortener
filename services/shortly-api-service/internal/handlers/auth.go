@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"shortly-api-service/internal/database"
+	"shortly-api-service/internal/dto"
 	"shortly-api-service/internal/models"
 	"shortly-api-service/internal/utils"
 	"shortly-api-service/internal/validators"
@@ -46,14 +47,14 @@ func Signup(ctx *gin.Context) {
 		utils.Log.Warn("Signup attempt with existing email", "email", data.Email)
 		ctx.JSON(http.StatusConflict, gin.H{
 			"success": false,
-			"message": "User already exists",
+			"error":   "User already exists",
 		})
 		return
 	} else if err != gorm.ErrRecordNotFound {
-		utils.Log.Error("Database error:", "error", err)
+		utils.Log.Error("Database error", "error", err)
 		ctx.JSON(http.StatusInternalServerError, gin.H{
 			"success": false,
-			"message": "Database error",
+			"error":   "Database error",
 		})
 		return
 	}
@@ -61,7 +62,7 @@ func Signup(ctx *gin.Context) {
 	hashPassword, err := utils.HashPassword(data.Password)
 
 	if err != nil {
-		utils.Log.Error("Error hashing password:", "error", err)
+		utils.Log.Error("Error hashing password", "error", err)
 		ctx.JSON(http.StatusInternalServerError, gin.H{
 			"success": false,
 			"error":   "Error hashing password",
@@ -79,7 +80,7 @@ func Signup(ctx *gin.Context) {
 		utils.Log.Error("Failed to create user", "error", err)
 		ctx.JSON(http.StatusInternalServerError, gin.H{
 			"success": false,
-			"message": "Failed to create user",
+			"error":   "Failed to create user",
 		})
 		return
 	}
@@ -88,11 +89,11 @@ func Signup(ctx *gin.Context) {
 
 	ctx.JSON(http.StatusCreated, gin.H{
 		"success": true,
-		"data": gin.H{
-			"id":         user.ID,
-			"email":      user.Email,
-			"username":   user.Username,
-			"created_at": user.CreatedAt,
+		"data": dto.UserDTO{
+			ID:        user.ID,
+			Email:     user.Email,
+			Username:  data.Username,
+			CreatedAt: user.CreatedAt,
 		},
 		"message": "User registered successfully",
 	})
@@ -169,11 +170,11 @@ func Signin(ctx *gin.Context) {
 	ctx.JSON(http.StatusOK, gin.H{
 		"success": true,
 		"token":   token,
-		"data": gin.H{
-			"id":         user.ID,
-			"email":      user.Email,
-			"username":   user.Username,
-			"created_at": user.CreatedAt,
+		"data": dto.UserDTO{
+			ID:        user.ID,
+			Email:     user.Email,
+			Username:  user.Username,
+			CreatedAt: user.CreatedAt,
 		},
 		"message": "Login successful",
 	})
