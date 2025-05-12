@@ -3,6 +3,7 @@ package handlers
 import (
 	"net/http"
 	"shortly-api-service/internal/database"
+	"shortly-api-service/internal/dto"
 	"shortly-api-service/internal/models"
 	"shortly-api-service/internal/utils"
 	"strconv"
@@ -57,7 +58,7 @@ func GetAnalytics(ctx *gin.Context) {
 
 	var analytics []models.Analytics
 
-	if err := database.DB.Where("UrlID = ?", urlId).Order("clicked_at desc").Find(&analytics).Error; err != nil {
+	if err := database.DB.Where("url_id  = ?", urlId).Order("clicked_at desc").Find(&analytics).Error; err != nil {
 		utils.Log.Error("Failed to fetch analytics", "error", err)
 		ctx.JSON(http.StatusInternalServerError, gin.H{
 			"success": false,
@@ -65,10 +66,25 @@ func GetAnalytics(ctx *gin.Context) {
 		})
 	}
 
+	var response []dto.AnalyticsResponse = make([]dto.AnalyticsResponse, 0)
+
+	for _, a := range analytics {
+		response = append(response, dto.AnalyticsResponse{
+			IPAddress: a.IPAddress,
+			OS:        a.OS,
+			Device:    a.Device,
+			Browser:   a.Browser,
+			UserAgent: a.UserAgent,
+			Referrer:  a.Referrer,
+			Country:   a.Country,
+			ClickedAt: a.ClickedAt.Format("2006-01-02 15:04:05"),
+		})
+	}
+
 	ctx.JSON(http.StatusOK, gin.H{
 		"success": true,
-		"data":    analytics,
-		"message": "got it",
+		"data":    response,
+		"message": "Analytics retrieved successfully",
 	})
 
 }

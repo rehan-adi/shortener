@@ -63,6 +63,7 @@ func main() {
 	routes.AuthRouter(api)
 	routes.HealthRouter(api)
 	routes.ProfileRouter(api)
+	routes.AnalyticsRouter(api)
 
 	utils.Log.Info("🚀 Server is running", "port", config.AppConfig.PORT)
 
