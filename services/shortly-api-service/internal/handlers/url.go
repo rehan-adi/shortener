@@ -401,14 +401,16 @@ func UpdateUrl(ctx *gin.Context) {
 		}
 	}
 
+	updateFields := map[string]interface{}{}
+
 	if updateData.ShortKey != "" {
-		url.ShortKey = updateData.ShortKey
+		updateFields["ShortKey"] = updateData.ShortKey
 	}
 	if updateData.Title != "" {
-		url.Title = updateData.Title
+		updateFields["Title"] = updateData.Title
 	}
 
-	if err := database.DB.Save(&url).Error; err != nil {
+	if err := database.DB.Model(&url).Select("ShortKey", "Title").Updates(updateFields).Error; err != nil {
 		utils.Log.Error("Failed to update URL", "error", err)
 		ctx.JSON(http.StatusInternalServerError, gin.H{
 			"success": false,
@@ -417,12 +419,28 @@ func UpdateUrl(ctx *gin.Context) {
 		return
 	}
 
+	cacheKey := "url:" + shortKey
+
+	go func() {
+		_, err := redis.RedisClient.Del(context.Background(), cacheKey).Result()
+
+		if err != nil {
+			utils.Log.Error("Failed to delete from cache", "error", err)
+		} else {
+			utils.Log.Info("Deleted URL from Redis cache", "cacheKey", cacheKey)
+		}
+
+	}()
+
 	ctx.JSON(http.StatusOK, gin.H{
 		"success": true,
-		"data": gin.H{
-			"original_url": url.OriginalURL,
-			"short_url":    url.ShortKey,
-			"title":        url.Title,
+		"data": dto.UpdateUrlResponseDTO{
+			ID:          url.ID,
+			OriginalURL: url.OriginalURL,
+			ShortKey:    updateData.ShortKey,
+			Title:       updateData.Title,
+			Clicks:      url.Clicks,
+			UpdatedAt:   url.UpdatedAt,
 		},
 		"message": "URL updated successfully",
 	})
@@ -460,6 +478,18 @@ func DeleteUrl(ctx *gin.Context) {
 		})
 		return
 	}
+
+	cacheKey := "url:" + shortKey
+
+	go func() {
+		_, err := redis.RedisClient.Del(context.Background(), cacheKey).Result()
+
+		if err != nil {
+			utils.Log.Error("Failed to delete from cache", "error", err)
+		} else {
+			utils.Log.Info("Deleted URL from Redis cache", "cacheKey", cacheKey)
+		}
+	}()
 
 	ctx.JSON(http.StatusOK, gin.H{
 		"success": true,

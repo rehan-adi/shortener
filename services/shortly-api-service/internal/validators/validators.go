@@ -29,7 +29,7 @@ var (
 )
 
 type UpdateUrlValidator struct {
-	ShortKey string `json:"short_key" validate:"omitempty,min=2,max=50,shortkeychars"`
+	ShortKey string `json:"short_url" validate:"omitempty,min=2,max=50,shortkeychars"`
 	Title    string `json:"title" validate:"omitempty,max=255"`
 }
 
