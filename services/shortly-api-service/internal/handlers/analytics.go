@@ -66,6 +66,15 @@ func GetAnalytics(ctx *gin.Context) {
 		})
 	}
 
+	if len(analytics) == 0 {
+		utils.Log.Warn("No analytics found for urlId", "urlId", urlId)
+		ctx.JSON(http.StatusNotFound, gin.H{
+			"success": false,
+			"error":   "No analytics found for this URL",
+		})
+		return
+	}
+
 	var response []dto.AnalyticsResponse = make([]dto.AnalyticsResponse, 0)
 
 	for _, a := range analytics {
