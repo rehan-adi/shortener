@@ -14,6 +14,12 @@ import (
 
 func GenerateKeys(count int) error {
 
+	ctx := context.Background()
+	collection := database.MongoClient.Database(config.AppConfig.MONGO_DB_NAME).Collection("shortkeys")
+
+	var keys []interface{}
+	var redisKeys []string
+
 	for i := 0; i < count; i++ {
 
 		key, err := utils.GenerateRandomKey(6)
@@ -22,21 +28,27 @@ func GenerateKeys(count int) error {
 			return err
 		}
 
-		// Store in MongoDB
-		collection := database.MongoClient.Database(config.AppConfig.MONGO_DB_NAME).Collection("shortkeys")
-
-		_, err = collection.InsertOne(context.Background(), models.ShortKey{
+		keys = append(keys, models.ShortKey{
 			Key:       key,
 			Status:    "available",
 			CreatedAt: time.Now(),
 		})
 
+		redisKeys = append(redisKeys, key)
+
+		utils.Log.Info("Again append to keys", "keys", keys)
+	}
+
+	if len(keys) > 0 {
+		_, err := collection.InsertMany(ctx, keys)
+
 		if err != nil {
 			return err
 		}
+	}
 
-		// Push to Redis queue
-		err = redis.RedisClient.LPush(context.Background(), constants.RedisQueueName, key).Err()
+	if len(redisKeys) > 0 {
+		err := redis.RedisClient.LPush(ctx, constants.RedisQueueName, redisKeys).Err()
 
 		if err != nil {
 			return err
