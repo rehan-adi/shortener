@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"fmt"
 	"shortly-kgs-service/config"
 	"shortly-kgs-service/internal/constants"
 	"shortly-kgs-service/internal/database"
@@ -32,7 +33,7 @@ func (s *KeyServiceServer) GetKey(ctx context.Context, req *key.Empty) (*key.Key
 
 	if queueLen < constants.QueueLength {
 		utils.Log.Info("Queue length is low, generating more keys")
-		if err := kgs.GenerateKeys(2000); err != nil {
+		if err := kgs.GenerateKeys(constants.KeyCount); err != nil {
 			return nil, err
 		}
 	}
@@ -53,14 +54,15 @@ func (s *KeyServiceServer) GetKey(ctx context.Context, req *key.Empty) (*key.Key
 		},
 	}
 
-	_, err = collection.UpdateOne(
+	res, err := collection.UpdateOne(
 		context.Background(),
 		filter,
 		update,
 	)
 
-	if err != nil {
-		return nil, err
+	if err != nil || res.ModifiedCount == 0 {
+		_ = redis.RedisClient.LPush(ctx, constants.RedisQueueName, keyVal).Err()
+		return nil, fmt.Errorf("failed to update key status in DB, pushed key %s back to Redis", keyVal)
 	}
 
 	utils.Log.Info("Key status update in database")
