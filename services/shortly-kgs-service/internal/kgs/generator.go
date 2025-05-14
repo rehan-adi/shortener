@@ -36,7 +36,6 @@ func GenerateKeys(count int) error {
 
 		redisKeys = append(redisKeys, key)
 
-		utils.Log.Info("Again append to keys", "keys", keys)
 	}
 
 	if len(keys) > 0 {
