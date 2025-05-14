@@ -2,6 +2,7 @@ package main
 
 import (
 	"net"
+	"net/http"
 	"os"
 
 	"shortly-kgs-service/config"
@@ -50,6 +51,21 @@ func main() {
 	grpcServer := grpc.NewServer()
 
 	key.RegisterKeyServiceServer(grpcServer, service.NewKeyServiceServer())
+
+	go func() {
+		http.HandleFunc("/api/v1/health", func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusOK)
+			w.Write([]byte(`{"success": true, "message": "KGS server is up and running"}`))
+		})
+
+		healthPort := ":8081"
+		utils.Log.Info("✅ Health check server running on " + healthPort)
+
+		if err := http.ListenAndServe(healthPort, nil); err != nil {
+			utils.Log.Error("❌ Failed to start health check server", "error", err)
+		}
+	}()
 
 	utils.Log.Info("Shortly KGS Service is running...")
 
