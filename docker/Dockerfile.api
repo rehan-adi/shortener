@@ -1,0 +1,17 @@
+FROM golang:1.24.2-alpine
+
+WORKDIR /app
+
+COPY proto/shortly-proto /proto/shortly-proto
+
+COPY services/shortly-api-service/go.mod services/shortly-api-service/go.sum ./
+
+RUN go mod download
+
+COPY services/shortly-api-service/ .
+
+RUN go build -o api-service ./cmd
+
+EXPOSE 8080
+
+CMD ["./api-service"]
